@@ -36,3 +36,4 @@ gdelt_cache.json
 # local alert watcher state (not source)
 btc_limit_alert_state.json
 btc_position_state.json
+btc_levels_state.json
