@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Pre-push secret scan — blocks pushes that add plausible credentials.
+# Install once per clone:  git config core.hooksPath .githooks
+# Bypass only if certain:  git push --no-verify
+set -uo pipefail
+
+ZERO=0000000000000000000000000000000000000000
+fail=0
+
+# Credential-shaped strings
+PATTERNS='(API[_-]?KEY|API[_-]?SECRET|SECRET[_-]?KEY|ACCESS[_-]?TOKEN|AUTH[_-]?TOKEN|PRIVATE[_-]?KEY|PASSWORD|PASSPHRASE|BOT[_-]?TOKEN|CLIENT[_-]?SECRET)[[:space:]]*[=:][[:space:]]*["'"'"']?[A-Za-z0-9_./+=-]{16,}'
+BOTTOKEN='[0-9]{8,10}:[A-Za-z0-9_-]{35}'
+AWS='AKIA[0-9A-Z]{16}'
+PEM='BEGIN (RSA |OPENSSH |EC |DSA )?PRIVATE KEY'
+HEX='[A-Fa-f0-9]{32,}'
+
+# Lines that are definitely not live secrets
+ALLOW='(os\.environ|getenv|environ\.get|environ\.setdefault|process\.env|your_|YOUR_|<[^>]+>|xxxx|example|placeholder|redact|redacted|sha512|sha256|integrity|checksum|digest|ZERO=)'
+# Files never worth scanning for hex noise (incl. this hook's own ZERO constant)
+SKIP_PATH='(package-lock\.json|poetry\.lock|yarn\.lock|\.min\.(js|css)|\.svg$|\.githooks/)'
+
+check_lines() {
+  local label="$1" hits="$2"
+  if [ -n "$hits" ]; then
+    echo "❌ pre-push: possible secret in $label" >&2
+    echo "$hits" | sed 's/^/   /' >&2
+    fail=1
+  fi
+}
+
+scan_added_lines() {
+  local range="$1"
+  local hits
+  hits=$(git diff --diff-filter=ACM -U0 "$range" -- . \
+    | grep -aE '^\+' | grep -avE '^\+\+\+' \
+    | grep -aE "$PATTERNS|$BOTTOKEN|$AWS|$PEM|$HEX" \
+    | grep -avE "$ALLOW" || true)
+  check_lines "$range" "$hits"
+  if git diff --name-only --diff-filter=ACM "$range" -- . | grep -qxE '(^|/)\.env$'; then
+    echo "❌ pre-push: .env must never be committed" >&2
+    fail=1
+  fi
+}
+
+scan_tree() {
+  local sha="$1"
+  local hits
+  hits=$(git grep -aInE "$PATTERNS|$BOTTOKEN|$AWS|$PEM|$HEX" "$sha" -- . ':(exclude).env.example' 2>/dev/null \
+    | grep -avE "$ALLOW" \
+    | grep -avE "$SKIP_PATH" || true)
+  check_lines "new branch tree $sha" "$hits"
+  if git ls-tree -r --name-only "$sha" | grep -qxE '(^|/)\.env$'; then
+    echo "❌ pre-push: .env present in new branch" >&2
+    fail=1
+  fi
+}
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "${local_sha:-}" ] && continue
+  [ "$local_sha" = "$ZERO" ] && continue            # branch deletion
+  if [ "$remote_sha" = "$ZERO" ]; then
+    scan_tree "$local_sha"                           # new branch / new repo
+  else
+    scan_added_lines "$remote_sha..$local_sha"
+  fi
+done
+
+if [ "$fail" -ne 0 ]; then
+  echo "" >&2
+  echo "Push blocked. Move secrets into .env (gitignored) or remove them." >&2
+  exit 1
+fi
+exit 0

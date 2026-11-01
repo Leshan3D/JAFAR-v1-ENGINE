@@ -1,0 +1,38 @@
+﻿__pycache__/
+*.pyc
+.env
+*.log
+*.exe
+.hf_cache/
+docker_test/
+
+# runtime state — regenerated at boot
+service_state.json
+alert_state.json
+last_actions.json
+signals.json
+snapshot_*.json
+snapshot_summary.json
+forecasts.json
+kronos_track.json
+discovery.json
+macro_calendar.json
+candidate_runs/
+pending_orders.json
+trade_log.json
+KILL_SWITCH
+intelligence_brief*.html
+public_link.txt
+tp_alert.out
+
+# Kronos forecast layer — vendored clone + isolated venv (not source-of-truth)
+kronos_src/
+.venv-kronos/
+# runtime trackers / caches
+fade_track.json
+oi_track.json
+gdelt_breaker.json
+gdelt_cache.json
+# local alert watcher state (not source)
+btc_limit_alert_state.json
+btc_position_state.json
