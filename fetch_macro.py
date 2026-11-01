@@ -20,6 +20,12 @@ import requests
 import pandas as pd
 from datetime import datetime, timedelta
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+except Exception:
+    pass
+
 # Read from env only — never hardcode secrets in source.
 FRED_API_KEY = os.environ.get("FRED_API_KEY", "").strip()
 FRED_BASE    = "https://api.stlouisfed.org/fred/series/observations"

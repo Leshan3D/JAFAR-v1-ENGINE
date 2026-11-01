@@ -24,6 +24,12 @@ MANUAL_FILE = "macro_calendar_manual.json"
 NY = ZoneInfo("America/New_York")
 UTC = timezone.utc
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+except Exception:
+    pass
+
 FRED_API_KEY = os.environ.get("FRED_API_KEY", "").strip()
 FRED_RELEASE_DATES = "https://api.stlouisfed.org/fred/release/dates"
 
