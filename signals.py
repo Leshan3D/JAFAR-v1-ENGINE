@@ -127,6 +127,7 @@ MACRO_SIGNAL_KEYS = {
     "NVDA": "equity_macro_signal",
     "META": "equity_macro_signal",
     "AMD":  "equity_macro_signal",
+    "INTC": "equity_macro_signal",
 }
 MACRO_LINKED_ASSETS = set(MACRO_SIGNAL_KEYS)
 

@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-for pid in $(pgrep -f "TradingPipeline/tp_alert.py" || true); do
+for pid in $(pgrep -f "tp_alert.py" || true); do
   kill "$pid" 2>/dev/null || true
 done
 sleep 1

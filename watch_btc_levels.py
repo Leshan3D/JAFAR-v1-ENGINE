@@ -42,18 +42,20 @@ def log(msg):
         pass
 
 
-def load_fired():
+def load_state():
+    """Returns (fired_levels, reference_price_at_arm)."""
     try:
         with open(STATE) as f:
-            return {float(x) for x in json.load(f).get("fired", [])}
+            d = json.load(f)
+        return {float(x) for x in d.get("fired", [])}, d.get("ref")
     except (OSError, ValueError):
-        return set()
+        return set(), None
 
 
-def save_fired(fired, last=None):
+def save_state(fired, last=None, ref=None):
     try:
         with open(STATE, "w") as f:
-            json.dump({"fired": sorted(fired), "last": last,
+            json.dump({"fired": sorted(fired), "ref": ref, "last": last,
                        "ts": datetime.now(timezone.utc).astimezone().isoformat()},
                       f, indent=2)
     except OSError as e:
@@ -77,11 +79,17 @@ def main():
     levels = sorted({float(x) for x in a.levels.replace(" ", "").split(",") if x})
 
     if a.reset:
-        save_fired(set())
-        print(f"re-armed: {', '.join(f'{x:,.0f}' for x in levels)}")
+        try:
+            ref, _, _ = quote(a.venue, a.symbol)
+        except Exception as e:
+            log(f"quote error on reset: {e}")
+            ref = None
+        save_state(set(), ref=ref)
+        print(f"re-armed at ref {ref:,.1f}: {', '.join(f'{x:,.0f}' for x in levels)}" if ref
+              else f"re-armed (no ref): {', '.join(f'{x:,.0f}' for x in levels)}")
         return 0
 
-    fired = load_fired()
+    fired, ref = load_state()
 
     try:
         last, ask, bid = quote(a.venue, a.symbol)
@@ -93,17 +101,28 @@ def main():
         if last is None:
             print("quote unavailable")
             return 1
-        print(f"{a.symbol} last={last:,.1f}  (fired: {sorted(fired) or 'none'})")
+        print(f"{a.symbol} last={last:,.1f}  ref={ref if ref is None else f'{ref:,.1f}'}"
+              f"  (fired: {sorted(fired) or 'none'})")
+        base = ref if ref is not None else last
         for lv in levels:
-            state = "FIRED" if lv in fired else ("at/above" if last >= lv else f"{(lv - last):+,.0f}")
+            if lv in fired:
+                state = "FIRED"
+            else:
+                direction = "down" if lv < base else "up"
+                state = f"{direction:>4} {(lv - last):+,.0f}"
             print(f"  {lv:,.0f}  -> {state}")
         return 0
 
+    if ref is None and last is not None:
+        ref = last
+        save_state(fired, last, ref)
+
     log(f"watching {a.venue}:{a.symbol} levels {[f'{x:,.0f}' for x in levels]} "
-        f"poll {a.poll}s dry={a.dry} fired={sorted(fired) or 'none'}")
+        f"poll {a.poll}s dry={a.dry} ref={ref} fired={sorted(fired) or 'none'}")
     if not a.quiet and not a.dry:
+        shown = f"{last:,.0f}" if last is not None else "n/a"
         desktop("BTC level watcher armed",
-                f"Watching {', '.join(f'{x:,.0f}' for x in levels)} (last {last:,.0f})")
+                f"Watching {', '.join(f'{x:,.0f}' for x in levels)} (last {shown})")
         telegram(f"✅ BTC level watcher armed: {', '.join(f'{x:,.0f}' for x in levels)}")
 
     while True:
@@ -115,20 +134,28 @@ def main():
             continue
 
         for lv in levels:
-            if lv not in fired and last >= lv:
-                ts = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
-                nxt = next((x for x in levels if x > lv), None)
-                title = f"BTC hit {lv:,.0f}"
-                body = (f"Last {last:,.1f} | ask {ask:,.1f} | bid {bid:,.1f} | {ts}\n"
-                        + (f"Next level {nxt:,.0f}. " if nxt else "Last level cleared. ")
-                        + "Re-check the engine before shorting/fading.")
-                log(f"LEVEL {lv:,.0f}: {body}")
-                if not a.dry:
-                    desktop(title, body, "critical")
-                    sound()
-                    telegram(f"{title}\n{body}")
-                fired.add(lv)
-                save_fired(fired, last)
+            if lv in fired:
+                continue
+            # Direction is decided from the price when the watcher was armed,
+            # so a stop below the market fires on the way DOWN and a target
+            # above it fires on the way UP.
+            downward = lv < (ref if ref is not None else last)
+            hit = (last <= lv) if downward else (last >= lv)
+            if not hit:
+                continue
+            ts = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+            nxt = next((x for x in levels if x > lv), None)
+            title = f"BTC hit {lv:,.0f}"
+            body = (f"Last {last:,.1f} | ask {ask:,.1f} | bid {bid:,.1f} | {ts}\n"
+                    + (f"Next level {nxt:,.0f}. " if nxt else "Last level cleared. ")
+                    + "Re-check the engine before shorting/fading.")
+            log(f"LEVEL {lv:,.0f}: {body}")
+            if not a.dry:
+                desktop(title, body, "critical")
+                sound()
+                telegram(f"{title}\n{body}")
+            fired.add(lv)
+            save_state(fired, last, ref)
 
         if len(fired) >= len(levels):
             log("all levels cleared — watcher done")

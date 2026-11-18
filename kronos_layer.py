@@ -9,7 +9,7 @@ It also writes a combined forecasts.json.
 Runs in its own venv (Kronos pins pandas==2.2.2 while the main pipeline uses
 pandas 3.x). Invoke with that interpreter, e.g.:
 
-    /home/jafar/.venvs/trading-kronos/bin/python kronos_layer.py
+    ~/.venvs/trading-kronos/bin/python kronos_layer.py
 
 Env overrides:
     KRONOS_SRC        path to cloned Kronos repo (default ./kronos_src)

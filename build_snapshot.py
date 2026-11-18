@@ -57,6 +57,7 @@ NEWS_ENTITY_PATTERNS = {
     "NVDA":     [r"\bnvidia\b", r"\bnvda\b"],
     "META":     [r"\bmeta platforms\b", r"\bmeta\b", r"\bfacebook\b"],
     "AMD":      [r"\badvanced micro devices\b", r"\bamd\b"],
+    "INTC":     [r"\bintel\b", r"\bintc\b", r"\bfoundry\b"],
     "DX-Y.NYB": [r"\bdollar\b", r"\bdxy\b"],
 }
 NEWS_ENTITY_PATTERNS = {
@@ -322,6 +323,20 @@ WATCHLIST = [
         "ticker":             None,
     },
 ]
+
+
+# Optional run-scoped universe filter. `JAFAR_ONLY=BTCUSDT,INTC` limits a run
+# to the named assets without editing the watchlist, so a focused scan can be
+# done against a specific CPI/FOMC event and the full sweep resumed afterwards.
+_only = [a.strip().upper() for a in
+         (os.environ.get("JAFAR_ONLY") or "").split(",") if a.strip()]
+if _only:
+    _known = {w["asset"].upper() for w in WATCHLIST}
+    _unknown = [a for a in _only if a not in _known]
+    if _unknown:
+        print(f"  [watchlist] JAFAR_ONLY — unknown asset(s) ignored: {_unknown}")
+    WATCHLIST = [w for w in WATCHLIST if w["asset"].upper() in set(_only)]
+    print(f"  [watchlist] JAFAR_ONLY active → {[w['asset'] for w in WATCHLIST]}")
 
 
 def validate_watchlist(watchlist):

@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 # JAFAR Trading Pipeline — engine service wrapper for systemd --user.
 # Runs run_service.py (full pipeline hourly + 15-min price refresh + dashboard +
-# Telegram alerts/bot), recording start/exit stamps in Local EAT.
+# Telegram alerts/bot), recording start/exit stamps in the host timezone.
 set -uo pipefail
 
-REPO="/home/jafar/TradingPipeline"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG="$REPO/pipeline_runs_eat.log"
-export TZ="UTC"
-export PATH="/home/jafar/.local/share/mise/installs/python/latest/bin:$PATH"
+export TZ="${TZ:-UTC}"
+# Pin the interpreter. mise's `latest` symlink moved to Python 3.15.2, which
+# does NOT have the engine's packages (requests/flask/pandas/yfinance/torch).
+# 3.14.7 is the interpreter every dependency is actually installed into.
+PY_HOME="${JAFAR_PY_HOME:-$HOME/.local/share/mise/installs/python/3.14.7}"
+[[ -x "$PY_HOME/bin/python3" ]] || PY_HOME="$HOME/.local/share/mise/installs/python/latest"
+export PATH="$PY_HOME/bin:$PATH"
 export PYTHONUNBUFFERED=1
 
 stamp() { date '+%Y-%m-%d %H:%M:%S %Z (%z)'; }

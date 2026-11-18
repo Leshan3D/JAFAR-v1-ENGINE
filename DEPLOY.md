@@ -90,7 +90,7 @@ docker run --rm -p 5050:5000 -e PORT=5000 -e DATA_DIR=/data \
 
 - **Is my local setup affected?** No. Data defaults to "next to the scripts";
   the env vars only change behavior inside the container.
-- **Bot chat the way I talk to llm?** The bot answers structured commands
+- **Bot chat?** The bot answers structured commands
   (`/signals`, `/signal zec`, `/price btc`, `/news gold`, `/run`). With
   `OPENAI_API_KEY` set, free text goes to an LLM that has the current
   signals.json as context — it can reason about positions but cannot modify

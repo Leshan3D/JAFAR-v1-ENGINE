@@ -219,6 +219,11 @@ def classify_inflation(cpi):
     return "NEUTRAL"
 
 
+def _cpi_num(x, nd=2):
+    """Format a CPI stat, or 'n/a' when BLS cannot publish it (e.g. missing YoY)."""
+    return f"{x:.{nd}f}%" if isinstance(x, (int, float)) else "n/a"
+
+
 def _cpi_brief(cpi):
     """Compact 'core X% MoM / Y% YoY' fragment for reasoning strings."""
     if not cpi:
@@ -316,8 +321,8 @@ def fetch_all_macro():
     result["inflation_signal"] = inflation_signal
     if cpi:
         print(f"  CPI [{cpi.get('source')}] {cpi.get('as_of')}: "
-              f"headline {cpi.get('headline_mom')}% MoM / {cpi.get('headline_yoy')}% YoY, "
-              f"core {cpi.get('core_mom')}% MoM / {cpi.get('core_yoy')}% YoY "
+              f"headline {_cpi_num(cpi.get('headline_mom'))} MoM / {_cpi_num(cpi.get('headline_yoy'))} YoY, "
+              f"core {_cpi_num(cpi.get('core_mom'))} MoM / {_cpi_num(cpi.get('core_yoy'))} YoY "
               f"→ {inflation_signal}")
 
     tailwinds, headwinds = [], []
@@ -472,8 +477,8 @@ if __name__ == "__main__":
           f"| dev {macro.get('dollar_dev_pct')}%")
     cpi = macro.get("cpi") or {}
     print(f"\n  CPI ({cpi.get('source')}, {cpi.get('as_of')}) : "
-          f"headline {cpi.get('headline_mom')}% MoM / {cpi.get('headline_yoy')}% YoY"
-          f" | core {cpi.get('core_mom')}% MoM / {cpi.get('core_yoy')}% YoY"
+          f"headline {_cpi_num(cpi.get('headline_mom'))} MoM / {_cpi_num(cpi.get('headline_yoy'))} YoY"
+          f" | core {_cpi_num(cpi.get('core_mom'))} MoM / {_cpi_num(cpi.get('core_yoy'))} YoY"
           f" → {macro.get('inflation_signal')}")
     print(f"  Gold Macro Signal  : {macro.get('gold_macro_signal')}")
     print(f"  Reasoning          : {macro.get('gold_macro_reasoning')}")

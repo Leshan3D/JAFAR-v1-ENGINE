@@ -508,7 +508,7 @@ body::before {
     </svg>
     <div>
       <div class="brand">JAFAR INTELLIGENCE</div>
-      <div class="brand-sub">Market Oracle · Local Operations</div>
+      <div class="brand-sub">Market Oracle</div>
     </div>
   </div>
   <div class="topbar-center" id="ticker-bar">
@@ -516,7 +516,7 @@ body::before {
   </div>
   <div class="topbar-right">
     <div class="clock-group">
-      <div class="clk"><span class="clk-lbl">Local EAT</span><span class="clk-val" id="clk-nbi">—</span></div>
+      <div class="clk"><span class="clk-lbl">Local</span><span class="clk-val" id="clk-local">—</span></div>
       <div class="clk"><span class="clk-lbl">UTC</span><span class="clk-val" id="clk-utc">—</span></div>
       <div class="clk"><span class="clk-lbl">New York ET</span><span class="clk-val" id="clk-ny">—</span></div>
     </div>
@@ -609,7 +609,7 @@ body::before {
   <!-- FOOTER -->
   <footer class="footer">
     <div class="footer-l">
-      JAFAR INTELLIGENCE · PRIVATE RESEARCH TERMINAL · LOCAL, LOCAL<br>
+      JAFAR INTELLIGENCE · PRIVATE RESEARCH TERMINAL<br>
       Data: Binance · yfinance · FRED · GDELT · Polymarket · FinBERT NLP<br>
       Not financial advice · Research purposes only · All signals require human judgment
     </div>
@@ -623,10 +623,10 @@ body::before {
 function pad(n){return String(n).padStart(2,'0')}
 function updateClocks(){
   const now=new Date();
-  const nbi=new Date(now.getTime()+3*3600000);
+  const local=new Date();
   const ny =new Date(now.getTime()-4*3600000);
   document.getElementById('clk-utc').textContent=pad(now.getUTCHours())+':'+pad(now.getUTCMinutes())+':'+pad(now.getUTCSeconds());
-  document.getElementById('clk-nbi').textContent=pad(nbi.getUTCHours())+':'+pad(nbi.getUTCMinutes())+':'+pad(nbi.getUTCSeconds());
+  document.getElementById('clk-local').textContent=pad(local.getHours())+':'+pad(local.getMinutes())+':'+pad(local.getSeconds());
   document.getElementById('clk-ny').textContent=pad(ny.getUTCHours())+':'+pad(ny.getUTCMinutes())+':'+pad(ny.getUTCSeconds());
 }
 setInterval(updateClocks,1000);

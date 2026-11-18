@@ -311,35 +311,6 @@ def do_light():
     sigs = regenerate_signals()
     _prune_orphan_snapshots()
 
-    # Update fade tracker (gainers losing momentum) — best effort + alerts
-    try:
-        import fade_tracker, alerts
-        try:
-            fade_tracker.update()
-            fades = fade_tracker.detect_fades()
-            if fades:
-                print(f"  [fades] {len(fades)} candidate(s)")
-                # emit concise alert (best-effort)
-                try:
-                    # per-symbol cooldown to avoid repeats
-                    sent_any = False
-                    for f in fades[:10]:
-                        m = f"📉 FADE: {f['symbol']} peak {f['peak_24h']:+.1f}% → now {f['cur_24h']:+.1f}% giveback {f['giveback']:.1f}pts (rng {f['range_pos']:.0f}%)"
-                        try:
-                            if hasattr(alerts, 'alert'):
-                                if alerts.alert(f"fade:{f['symbol']}", m, cooldown_s=1800):
-                                    sent_any = True
-                            else:
-                                alerts.send(m)
-                                sent_any = True
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
-        except Exception:
-            pass
-    except Exception:
-        pass
     set_state(last_light_refresh=_now(),
               **({"last_error": failed[0]} if failed else {}))
     print(f"  [service] refreshed {refreshed}/{len(bs.WATCHLIST)} snapshots, "

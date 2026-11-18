@@ -10,8 +10,8 @@ drivers), a second table for HOLD/watch-list names, and a short caveats list.
 No prose dumps; reasons go in compact table cells or tight bullets.
 
 ## Critical gotcha
-The `.venv/` in this directory is a **Windows** venv (pyvenv.cfg → `C:\Users\user\...`,
-`Scripts/*.exe`). It will NEVER work on Linux. NEVER use it. Always use system
+The `.venv/` in this directory is a stale local venv. It is not used by the
+engine and it may contain binaries from another OS. NEVER use it. Always use system
 `python3` (mise Python 3.14; flask, pandas, numpy, yfinance, torch preinstalled).
 
 ## Commands
@@ -34,7 +34,7 @@ and prints a running hit-rate. Kronos pins `pandas==2.2.2` while the engine runs
 pandas 3.x, so it lives in its own venv and runs as a subprocess — never import
 `model` from the main interpreter.
 
-- venv: `/home/jafar/.venvs/trading-kronos/bin/python` (override `KRONOS_PYTHON`)
+- venv: `~/.venvs/trading-kronos/bin/python` (override `KRONOS_PYTHON`)
 - repo: `kronos_src/` (git clone of shiyu-coder/Kronos)
 - horizon: `KRONOS_PRED_LEN` (24 default = ~1 day on 1h bars); daily assets
   (GC=F, BZ=F, DX-Y.NYB) use 3 bars via `KRONOS_PRED_LEN_BY_ASSET` in build_snapshot.py

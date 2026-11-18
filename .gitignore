@@ -37,3 +37,5 @@ gdelt_cache.json
 btc_limit_alert_state.json
 btc_position_state.json
 btc_levels_state.json
+# one-shot MSCI watcher run artifacts
+msci_watch/

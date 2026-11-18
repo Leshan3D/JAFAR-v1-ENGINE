@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# JAFAR Intelligence Pipeline — full run, timestamped in Local EAT.
+# JAFAR Intelligence Pipeline — full run, timestamped in the host timezone.
 # Usage: run_pipeline_eat.sh [--no-brief]
 set -uo pipefail
 
-REPO="/home/jafar/TradingPipeline"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG="$REPO/pipeline_runs_eat.log"
-export TZ="UTC"
-export PATH="/home/jafar/.local/share/mise/installs/python/latest/bin:$PATH"
+export TZ="${TZ:-UTC}"
+# Pin the interpreter: mise `latest` moved to 3.15.2 (no deps installed).
+PY_HOME="${JAFAR_PY_HOME:-$HOME/.local/share/mise/installs/python/3.14.7}"
+[[ -x "$PY_HOME/bin/python3" ]] || PY_HOME="$HOME/.local/share/mise/installs/python/latest"
+export PATH="$PY_HOME/bin:$PATH"
 
 cd "$REPO" || exit 1
 

@@ -22,12 +22,12 @@ Jafar Engine ingests multi-source market data, computes factor-based signals, ap
 ## Quick Start
 
 ### Prereqs
-- Python 3.14 (system). Do not use the repo’s `.venv/` (Windows venv).
+- Python 3.14 (system). Do not use the repo’s `.venv/` (may be stale or from another OS).
 - Packages: flask, pandas, numpy, yfinance, torch (preinstalled in environment). Kronos uses its own isolated venv at `~/.venvs/trading-kronos/` (pinned pandas 2.2.2).
 
 ### Commands
 ```bash
-cd /mnt/jafar-data/CODE/TradingPipeline
+cd JAFAR-ENGINE
 
 # Full data layer run (auto-runs Kronos at end)
 python3 build_snapshot.py
@@ -77,7 +77,7 @@ Outputs: `intelligence_brief_*.html`, logs in `service.log`.
 
 ## Safety & Notes
 
-- **Windows venv**: `.venv/` is Windows-only — never use on Linux. Use system `python3`.
+- **Local venv**: `.venv/` is not used — run with the system Python pinned in the wrappers.
 - **Human-in-the-loop**: Engine never auto-fires trades; crypto proposals require explicit approval (dashboard/Telegram).
 - **Whitelist**: Only BTCUSDT/ETHUSDT/SOLUSDT/ZECUSDT tradable. Equities/commodities (GC=F/BZ=F/DX-Y.NYB/META/NVDA/AMD) remain advisory.
 - **Kill switch**: Presence of `KILL_SWITCH` file halts everything.

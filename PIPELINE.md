@@ -4,8 +4,8 @@
 > asked to "run the pipeline" / "launch the dashboard".
 
 ## Environment gotcha (IMPORTANT)
-The `.venv/` in this repo is a **Windows** venv — `pyvenv.cfg` points at
-`C:\Users\user\...` and it contains Windows-native `Scripts/*.exe`. It will
+The `.venv/` in this repo is a stale local venv — it may contain binaries from
+another OS. It will
 **never run on Linux**. Ignore it entirely.
 
 Always use the system `python3` (mise, Python 3.14). Everything needed is already
@@ -64,7 +64,7 @@ Layer 1.5: Kronos Forecast Layer  (kronos_layer.py — auto-run by build_snapsho
   forecasting the next N bars (24 for 1h assets ≈ 1 day; 3 for daily assets).
   Writes forecasts.json + kronos_track.json (accuracy scoreboard) and injects a
   `kronos_forecast` block into each snapshot. Runs in an isolated venv
-  (/home/jafar/.venvs/trading-kronos) because Kronos pins pandas 2.2.2
+  (~/.venvs/trading-kronos) because Kronos pins pandas 2.2.2
   while the engine uses pandas 3.x. CPU-only; ~12s for all 10 assets.
 
 

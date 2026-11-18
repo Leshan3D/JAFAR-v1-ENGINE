@@ -12,8 +12,6 @@ Commands:
   /signal <A>    full signal: score, levels, sizing, rationale
   /price <A>     live price + distance to entry/SL/TP1
   /news <A>      latest headlines for an asset
-  /discover      top MEXC gainers/losers (24h) - tap one to analyze it
-  /fades         gainers losing momentum (fade tracker)\n"
   /positions     pending proposals + open positions
   /run           kick off a full pipeline run now
 
@@ -43,8 +41,6 @@ HELP = (
     "/signal zec - full signal for one asset\n"
     "/price btc - live price vs entry/SL/TP\n"
     "/news gold - latest headlines\n"
-    "/discover - top MEXC gainers/losers, tap one to analyze\n"
-    "/fades - gainers losing momentum (peak->now giveback)\n"
     "/positions - pending proposals + open positions\n"
     "/run - run the full pipeline now\n"
     "Or just type a question - it goes to the LLM with the full Jafar "
@@ -359,11 +355,10 @@ def _parse_responses(data):
 
 def llm_reply(text):
     key = os.environ.get("OPENAI_API_KEY", "").strip()
-    if not key:
+    model = os.environ.get("OPENAI_MODEL", "").strip()
+    if not key or not model:
         return None
-    base = os.environ.get("OPENAI_BASE_URL",
-                          "https://llm.ai/zen/v1").rstrip("/")
-    model = os.environ.get("OPENAI_MODEL", "big-pickle")
+    base = os.environ.get("OPENAI_BASE_URL", "").rstrip("/")
     style = os.environ.get("OPENAI_API_STYLE", "chat").lower()
     headers = {"Authorization": f"Bearer {key}"}
 
@@ -628,17 +623,6 @@ def handle_callback(cq):
     mid = msg.get("message_id")
     action, _, oid = data.partition(":")
 
-    if action == "disc":
-        _api_post("answerCallbackQuery",
-                  {"callback_query_id": cq.get("id"),
-                   "text": f"Analyzing {oid}… (~1-2 min)"})
-        _send(cid, f"🔬 Running {oid} through the engine "
-                   f"(price · news · FinBERT · F&G · Kronos)… "
-                   f"I'll post the dossier here when it's done.")
-        threading.Thread(target=_candidate_reply, args=(cid, oid),
-                         daemon=True).start()
-        return
-
     import trader
     if action == "approve":
         res = trader.approve(oid, via="telegram")
@@ -694,141 +678,6 @@ def cmd_positions():
     return "\n".join(lines)
 
 
-def cmd_discover(chat_id, max_age_s=900):
-    """Top MEXC gainers/losers with a tap-to-analyze button per row.
-
-    Reads the separate discovery.json (refreshing if stale). Candidates are
-    NOT on the watchlist - tapping one runs an ephemeral analysis only.
-    """
-    try:
-        import discover
-    except Exception as e:  # noqa: BLE001
-        _send(chat_id, f"discover unavailable: {e}")
-        return
-    try:
-        payload = discover.get_movers(max_age_s=max_age_s)
-    except Exception as e:  # noqa: BLE001
-        _send(chat_id, f"movers fetch failed: {e}")
-        return
-
-    gen = str(payload.get("generated_at", ""))[:16].replace("T", " ")
-    lines = [f"🔎 <b>TOP MOVERS</b> - MEXC USDT-M · 24h",
-             f"<i>{html.escape(gen)}Z · {payload.get('universe', 0)} perps</i>", ""]
-    kb = []
-    for side, head in (("gainers", "📈 <b>GAINERS</b>"), ("losers", "📉 <b>LOSERS</b>")):
-        lines.append(head)
-        for i, r in enumerate(payload.get(side, [])):
-            nm = r.get("name") or r.get("base") or ""
-            lines.append(f"  {i+1}. <code>{html.escape(r['symbol'])}</code> "
-                         f"{html.escape(str(nm))} <b>{r['change_24h_pct']:+.1f}%</b>")
-        lines.append("")
-    for r in payload.get("gainers", []):
-        kb.append([{"text": f"📈 {r['symbol']} {r['change_24h_pct']:+.1f}%",
-                    "callback_data": f"disc:{r['symbol']}"}])
-    for r in payload.get("losers", []):
-        kb.append([{"text": f"📉 {r['symbol']} {r['change_24h_pct']:+.1f}%",
-                    "callback_data": f"disc:{r['symbol']}"}])
-    lines.append("<i>Tap a symbol to run it through the engine (price · news · "
-                 "FinBERT · F&amp;G · Kronos · levels).</i>")
-    _send_kb(chat_id, "\n".join(lines), kb, parse_mode="HTML")
-
-def cmd_fades(chat_id, max_age_s=900):
-    """Show gainers that are losing momentum (fades)."""
-    try:
-        import fade_tracker, discover
-    except Exception as e:
-        _send(chat_id, f"fade tracker unavailable: {e}")
-        return
-    try:
-        # ensure fresh-ish discovery + update
-        discover.get_movers(max_age_s=max_age_s)
-        track = fade_tracker.update()
-        fades = fade_tracker.detect_fades(track=track)
-    except Exception as e:
-        _send(chat_id, f"fade detection failed: {e}")
-        return
-    if not fades:
-        _send(chat_id, "No clear fade candidates right now (need ≥20% peak and ≥15pt giveback / cross under 50% range with recent roll-over).")
-        return
-    lines = ["📉 <b>FADE TRACKER</b> - gainers losing momentum", ""]
-    kb = []
-    for i, f in enumerate(fades):
-        lines.append(f"{i+1}. <code>{html.escape(f['symbol'])}</code>  peak {f['peak_24h']:+.1f}% -> now {f['cur_24h']:+.1f}%  giveback <b>{f['giveback']:.1f}pts</b>  rng-pos {f['range_pos']:.0f}%")
-        kb.append([{"text": f"📉 {f['symbol']} fade", "callback_data": f"disc:{f['symbol']}"}])
-    lines.append("\n<i>Tap a symbol to run it through the engine.</i>")
-    _send_kb(chat_id, "\n".join(lines), kb, parse_mode="HTML")
-
-def _candidate_html(sig, snap, symbol):
-    """Dossier for an on-demand candidate analysis (not a watchlist signal)."""
-    action = str(sig.get("action") or "?")
-    score = sig.get("composite_score")
-    score_txt = f"{score:+.1f}" if isinstance(score, (int, float)) else "-"
-    label = sig.get("label") or symbol
-    c = snap.get("sentiment_counts") or {}
-    counts = (f"{c.get('positive', 0)}P/{c.get('negative', 0)}N/"
-              f"{c.get('neutral', 0)}Neu") if c else "?"
-    lines = [
-        f"🔬 <b>{html.escape(str(label))}</b> · <code>{html.escape(symbol)}</code>  "
-        f"<i>(candidate)</i>",
-        f"🧭 <b>{html.escape(action)}</b>  ·  composite <b>{score_txt}</b>  ·  "
-        f"{_price(sig.get('current_price'))}",
-        f"<i>news {html.escape(str(snap.get('news_scope')))} · "
-        f"{html.escape(str(snap.get('overall_sentiment')))} {counts}</i>",
-    ]
-    flines = []
-    for f in sig.get("factors") or []:
-        w = f.get("weight") or 0
-        sc = f.get("score") or 0
-        flines.append(f"  {str(f.get('factor')):<10} ×{w:.2f}   {sc:+6.1f}")
-    if flines:
-        lines.append("⚖️ <b>FACTORS</b>\n<pre>" + html.escape("\n".join(flines)) + "</pre>")
-    km = (sig.get("factor_meta") or {}).get("kronos")
-    if km:
-        lines.append(f"🔮 Kronos {html.escape(str(km.get('direction')))} "
-                     f"{km.get('expected_return_pct')}% /{km.get('pred_len')} bars · "
-                     f"score {km.get('score')}")
-    lv = sig.get("levels") or {}
-    if lv.get("entry") is not None:
-        lines.append("")
-        lines.append(f"💰 Entry  <b>{_price(lv.get('entry'))}</b>")
-        lines.append(f"🛑 Stop   {_price(lv.get('stop_loss'))}  "
-                     f"<i>({_pct(lv.get('entry'), lv.get('stop_loss'))})</i>")
-        lines.append(f"🎯 TP1    {_price(lv.get('take_profit_1'))}  "
-                     f"<i>({_pct(lv.get('entry'), lv.get('take_profit_1'))})</i>")
-        lines.append(f"🎯 TP2    {_price(lv.get('take_profit_2'))}  "
-                     f"<i>({_pct(lv.get('entry'), lv.get('take_profit_2'))})</i>")
-        if sig.get("position_size_frac") is not None:
-            lines.append(f"📦 size   {sig.get('position_size_frac'):.3f} of account")
-    hl = [str(h) for h in (snap.get("news_headlines") or [])][:3]
-    if hl:
-        lines.append("")
-        lines.append("📰 <b>HEADLINES</b>\n" +
-                     "\n".join("• " + html.escape(h) for h in hl))
-    why = str(sig.get("rationale") or "").strip()
-    if why:
-        if len(why) > 1200:
-            why = why[:1190] + "\n…"
-        lines.append("\n🧠 <b>WHY</b>\n<pre>" + html.escape(why) + "</pre>")
-    lines.append(f"\n<i>{html.escape(symbol)} is a candidate, not on the "
-                 f"watchlist. Nothing here is persisted to signals.json.</i>")
-    return "\n".join(lines)
-
-
-def _candidate_reply(chat_id, symbol):
-    """Background worker: analyze one candidate and post the dossier."""
-    try:
-        import candidate
-        res = candidate.analyze_candidate(symbol, verbose=False)
-    except Exception as e:  # noqa: BLE001
-        _api_post("sendMessage", {"chat_id": chat_id,
-                                  "text": f"❌ Analysis failed for {symbol}: {e}"})
-        return
-    text = _candidate_html(res["signal"], res["snapshot"], res["symbol"])
-    _api_post("sendMessage", {"chat_id": chat_id, "text": text[:4000],
-                              "parse_mode": "HTML",
-                              "disable_web_page_preview": True})
-
-
 def handle(msg, trigger_run, get_state):
     chat_id = str((msg.get("chat") or {}).get("id", ""))
     text    = (msg.get("text") or "").strip()
@@ -856,12 +705,6 @@ def handle(msg, trigger_run, get_state):
         reply = cmd_price(arg)
     elif cmd == "news":
         reply = cmd_news(arg)
-    elif cmd == "discover":
-        cmd_discover(chat_id)
-        reply = None
-    elif cmd == "fades":
-        cmd_fades(chat_id)
-        reply = None
     elif cmd == "positions":
         reply = cmd_positions()
     elif cmd == "run":

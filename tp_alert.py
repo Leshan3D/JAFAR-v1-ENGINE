@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-JAFAR trade alert watcher for the Omarchy desktop.
+JAFAR trade alert watcher for the desktop.
 
 Polls Binance for a BTCUSDT-style symbol and fires a native Omarchy desktop
 notification when entry neighbors are touched: TP1, TP2 (normal urgency) and

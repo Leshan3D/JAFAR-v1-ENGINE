@@ -83,9 +83,7 @@ def generate_brief(summary_path="snapshot_summary.json", output_path="intelligen
     summary = load_summary(summary_path)
     now_utc = datetime.now(timezone.utc)
     now_str = now_utc.strftime("%A, %d %B %Y — %H:%M UTC")
-    local_str = datetime.fromtimestamp(
-        now_utc.timestamp() + 3*3600
-    ).strftime("%H:%M EAT")
+    local_str = datetime.now().astimezone().strftime("%H:%M %Z")
 
     # Overall consensus
     sentiments = [s.get("overall_sentiment","UNKNOWN") for s in summary]
@@ -500,7 +498,7 @@ body {{
     <!-- MASTHEAD -->
     <div class="masthead">
         <div class="masthead-name">JAFAR Intelligence</div>
-        <div class="masthead-sub">Private Market Intelligence Brief · Local Operations</div>
+        <div class="masthead-sub">Private Market Intelligence Brief</div>
     </div>
     <div class="dateline">
         {now_str} &nbsp;·&nbsp; {local_str} &nbsp;·&nbsp;
@@ -533,7 +531,7 @@ body {{
     <!-- FOOTER -->
     <div class="brief-footer">
         <p>
-            JAFAR Intelligence · Private Research Terminal · Local, Local<br>
+            JAFAR Intelligence · Private Research Terminal<br>
             Data: Binance · yfinance · FRED API · GDELT · Polymarket · FinBERT NLP<br>
             Generated: {now_str}<br>
             Not financial advice · All signals require human judgment before action

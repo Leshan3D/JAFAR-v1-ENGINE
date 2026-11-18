@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Launch the JAFAR dashboard server and open it in Brave.
+# Launch the JAFAR dashboard server and open it in your browser.
 set -euo pipefail
 cd "$(dirname "$0")"
 
